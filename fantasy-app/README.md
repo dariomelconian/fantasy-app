@@ -16,9 +16,14 @@
 
 ## Quick start
 1. Create Supabase project and get `SUPABASE_URL` + `SUPABASE_KEY`
-2. Run `supabase/setup_schema.sql` in SQL editor
+2. Run `supabase/setup_schema.sql` and `supabase/rls_policies.sql` in SQL editor
 3. Configure iOS env in `ios/Services/SupabaseClient.swift`
 4. Build and run the SwiftUI app from Xcode
+
+## Supabase flow
+- League operations in `ios/Services/SupabaseLeagueService.swift`
+- Draft + waiver + standings logic in `ios/Services/FantasyEngine.swift`
+- Sample state in `ios/ViewModels/FantasyViewModel.swift`
 
 ## Pivot plan
 1. Add MLB data feed (same architecture as NHL client)

@@ -6,8 +6,10 @@ final class FantasyViewModel: ObservableObject {
     @Published var activeDraft: DraftProgress?
 
     private var draftOrder: [String] = []
+    private let leagueService: SupabaseLeagueService
 
-    init() {
+    init(supabaseClient: SupabaseClient = SupabaseClient(config: SupabaseConfig(urlString: "https://your-project-ref.supabase.co", anonKey: "YOUR_ANON_KEY"))) {
+        self.leagueService = SupabaseLeagueService(supabaseClient: supabaseClient)
         // sample seed
         createSampleLeague()
     }
@@ -65,6 +67,25 @@ final class FantasyViewModel: ObservableObject {
     func isDraftPickForTeam(_ team: String) -> Bool {
         guard let draft = activeDraft else { return false }
         return draft.nextTeamName == team
+    }
+
+    func loadLeagues(for userId: UUID) async {
+        do {
+            let result = try await leagueService.fetchUserLeagues(userId: userId)
+            DispatchQueue.main.async {
+                self.leagues = result
+            }
+        } catch {
+            print("Failed to fetch leagues: \(error)")
+        }
+    }
+
+    func resolveWaivers(_ queue: [WaiverRequestInput]) -> [WaiverRequestInput] {
+        FantasyEngine.resolveWaiverQueue(queue)
+    }
+
+    func calculateStandings(after matchups: [WeeklyMatchupResultInput]) -> [StandingUpdate] {
+        FantasyEngine.calculateStandingsFromMatchups(matchups)
     }
 }
 
