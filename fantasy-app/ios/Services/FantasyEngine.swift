@@ -47,6 +47,27 @@ public final class FantasyEngine {
     }
 
     /// Process matchup results and produce standings updates.
+    public static func calculateFantasyPoints(from stat: NHLPlayerStat) -> Double {
+        let goals = Double(stat.goals ?? 0) * 6.0
+        let assists = Double(stat.assists ?? 0) * 4.0
+        let pim = Double(stat.pim ?? 0) * -0.5
+        let shots = Double(stat.shots ?? 0) * 0.5
+        let hits = Double(stat.hits ?? 0) * 0.5
+        let blocked = Double(stat.blocked ?? 0) * 0.5
+        let powerPlays = Double(stat.powerPlayGoals ?? 0) * 1.5
+        let shortHanded = Double(stat.shortHandedGoals ?? 0) * 2.0
+        let gameWinner = Double(stat.gameWinningGoals ?? 0) * 2.0
+        let plusMinus = Double(stat.plusMinus ?? 0) * 0.5
+
+        return goals + assists + pim + shots + hits + blocked + powerPlays + shortHanded + gameWinner + plusMinus
+    }
+
+    public static func aggregateTeamPoints(playerPoints: [UUID: Double], roster: [RosterEntry]) -> Double {
+        roster.reduce(0.0) { total, entry in
+            total + (playerPoints[entry.playerId] ?? 0.0)
+        }
+    }
+
     public static func calculateStandingsFromMatchups(_ results: [WeeklyMatchupResultInput]) -> [StandingUpdate] {
         var map = [UUID: StandingUpdate]()
 

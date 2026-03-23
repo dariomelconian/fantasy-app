@@ -73,7 +73,60 @@ public struct SupabaseLeagueService {
         return try await supabase.fetch(path, type: [StandingRow].self)
     }
 
-    public func fetchTeams(leagueId: UUID) async throws -> [FantasyTeam] {
+    public func fetchPlayers(playerIds: [UUID]) async throws -> [FantasyPlayer] {
+        let ids = playerIds.map { $0.uuidString }.joined(separator: ",")
+        let path = "rest/v1/players?id=in.(\(ids))"
+        return try await supabase.fetch(path, type: [FantasyPlayer].self)
+    }
+
+    public func calculateWeeklyMatchups(leagueId: UUID, week: Int, season: String) async throws -> [WeeklyMatchupResultInput] {
+        let teams = try await fetchTeams(leagueId: leagueId)
+        var teamScores = [UUID: Double]()
+
+        for team in teams {
+            let rosterEntries = try await fetchRosterEntries(teamId: team.id)
+            let playerUUIDs = rosterEntries.map { $0.playerId }
+            let players = try await fetchPlayers(playerIds: playerUUIDs)
+
+            var playerPoints = [UUID: Double]()
+            let nhl = NHLAPI()
+            for player in players {
+                if let playerId = Int(player.externalId) {
+                    let statsResponse = try await nhl.getPlayerStats(playerId: playerId, season: season)
+                    if let split = statsResponse.stats.first?.splits.first {
+                        playerPoints[player.id] = FantasyEngine.calculateFantasyPoints(from: split.stat)
+                    }
+                }
+            }
+
+            let teamScore = FantasyEngine.aggregateTeamPoints(playerPoints: playerPoints, roster: rosterEntries)
+            teamScores[team.id] = teamScore
+        }
+
+        var results: [WeeklyMatchupResultInput] = []
+        let sortedTeams = teams.sorted(by: { $0.draftPosition ?? 0 < $1.draftPosition ?? 0 })
+        for idx in stride(from: 0, to: sortedTeams.count - 1, by: 2) {
+            let a = sortedTeams[idx]
+            let b = sortedTeams[idx + 1]
+            results.append(WeeklyMatchupResultInput(
+                league_id: leagueId,
+                week: week,
+                teamAId: a.id,
+                teamBId: b.id,
+                scoreA: teamScores[a.id] ?? 0.0,
+                scoreB: teamScores[b.id] ?? 0.0
+            ))
+        }
+
+        // write results into weekly_matchups
+await insertWeeklyMatchups(results)
+        return results
+    }
+
+    public func insertWeeklyMatchups(_ results: [WeeklyMatchupResultInput]) async throws -> [WeeklyMatchup] {
+        let path = "rest/v1/weekly_matchups"
+        return try await supabase.post(path, payload: results, type: [WeeklyMatchup].self)
+    }
         let path = "rest/v1/teams?league_id=eq.\(leagueId.uuidString)&order=draft_position.asc"
         return try await supabase.fetch(path, type: [FantasyTeam].self)
     }

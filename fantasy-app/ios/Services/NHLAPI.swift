@@ -43,9 +43,20 @@ public final class NHLAPI {
         let wrapper: NHLScheduleResponse = try await fetch(from: url)
         return wrapper.dates.flatMap { $0.games }
     }
+
+    public func getPlayerStats(playerId: Int, season: String) async throws -> NHLPlayerStatsResponse {
+        guard let url = URL(string: "\(baseURL)/people/\(playerId)/stats?stats=statsSingleSeason&season=\(season)") else { throw NHLAPIError.invalidURL }
+        return try await fetch(from: url)
+    }
+
+    public func getGameBoxscore(gamePk: Int) async throws -> NHLBoxscoreResponse {
+        guard let url = URL(string: "\(baseURL)/game/\(gamePk)/boxscore") else { throw NHLAPIError.invalidURL }
+        return try await fetch(from: url)
+    }
 }
 
 fileprivate struct NHLTeamsResponse: Codable { let teams: [NHLTeam] }
+fileprivate struct NHLTeamRosterResponse: Codable { let teams: [NHLTeamWithRoster] }
 fileprivate struct NHLTeamRosterResponse: Codable { let teams: [NHLTeamWithRoster] }
 fileprivate struct NHLTeamWithRoster: Codable { let roster: NHLRoster? }
 fileprivate struct NHLRoster: Codable { let roster: [NHLRosterEntry] }
@@ -60,3 +71,58 @@ public struct NHLScheduleTeams: Codable {
     let home: NHLScheduleTeamInfo
 }
 public struct NHLScheduleTeamInfo: Codable { let score: Int?; let team: NHLTeam }
+
+public struct NHLPlayerStatsResponse: Codable {
+    let stats: [NHLPlayerStatsContainer]
+}
+
+public struct NHLPlayerStatsContainer: Codable {
+    let type: NHLPlayerStatsType
+    let splits: [NHLPlayerStatsSplit]
+}
+
+public struct NHLPlayerStatsType: Codable {
+    let displayName: String
+    let gameType: String
+    let season: String
+}
+
+public struct NHLPlayerStatsSplit: Codable {
+    let stat: NHLPlayerStat
+}
+
+public struct NHLPlayerStat: Codable {
+    let goals: Int?
+    let assists: Int?
+    let pim: Int?
+    let shots: Int?
+    let hits: Int?
+    let blocked: Int?
+    let powerPlayGoals: Int?
+    let shortHandedGoals: Int?
+    let gameWinningGoals: Int?
+    let plusMinus: Int?
+}
+
+public struct NHLBoxscoreResponse: Codable {
+    let teams: NHLBoxscoreTeams
+}
+
+public struct NHLBoxscoreTeams: Codable {
+    let away: NHLBoxscoreTeam
+    let home: NHLBoxscoreTeam
+}
+
+public struct NHLBoxscoreTeam: Codable {
+    let team: NHLTeam
+    let players: [String: NHLBoxscorePlayer]
+}
+
+public struct NHLBoxscorePlayer: Codable {
+    let person: NHLPlayer
+    let stats: NHLBoxscorePlayerStats
+}
+
+public struct NHLBoxscorePlayerStats: Codable {
+    let skaterStats: NHLPlayerStat?
+}

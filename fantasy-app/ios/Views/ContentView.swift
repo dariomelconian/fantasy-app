@@ -40,6 +40,12 @@ struct ContentView: View {
                     Image(systemName: "person.3")
                     Text("Roster")
                 }
+
+            WeeklyScoringView()
+                .tabItem {
+                    Image(systemName: "chart.bar.fill")
+                    Text("Scoring")
+                }
         }
         .accentColor(.ember)
         .background(Color.carbonBackground.ignoresSafeArea())

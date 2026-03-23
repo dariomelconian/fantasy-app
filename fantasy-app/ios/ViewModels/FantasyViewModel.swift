@@ -244,6 +244,17 @@ final class FantasyViewModel: ObservableObject {
         }
     }
 
+    func runWeeklyScoring(week: Int, season: String = "20242025") async {
+        guard let leagueId = activeLeague?.id else { return }
+        do {
+            let results = try await leagueService.calculateWeeklyMatchups(leagueId: leagueId, week: week, season: season)
+            print("Weekly matchup results computed for week \(week):", results)
+            // an app could also refresh standings here
+        } catch {
+            print("Failed running weekly scoring: \(error)")
+        }
+    }
+
     func resolveWaivers(_ queue: [WaiverRequestInput]) -> [WaiverRequestInput] {
         FantasyEngine.resolveWaiverQueue(queue)
     }
