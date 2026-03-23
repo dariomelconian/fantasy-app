@@ -21,6 +21,7 @@ create table if not exists leagues (
   draft_started boolean default false,
   draft_completed boolean default false,
   waiver_period_hours int not null default 72,
+  invite_code text unique,
   matchup_week_start date,
   matchup_week_end date,
   created_at timestamp with time zone default now()

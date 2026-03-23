@@ -19,8 +19,9 @@ struct LeagueManagementView: View {
 
             Button(action: {
                 Task {
-                    await viewModel.createLeague(name: leagueName, sport: "NHL", ownerId: userId)
-                    statusMessage = "Created league: \(leagueName)"
+                    let invite = "INV-\(UUID().uuidString.prefix(5))"
+                    await viewModel.createLeague(name: leagueName, sport: "NHL", ownerId: userId, inviteCode: invite)
+                    statusMessage = "Created league: \(leagueName) (code: \(invite))"
                     leagueName = ""
                 }
             }) {
@@ -45,13 +46,9 @@ struct LeagueManagementView: View {
 
             Button(action: {
                 Task {
-                    if let leagueId = UUID(uuidString: inviteCode) {
-                        await viewModel.joinLeague(leagueId: leagueId, userId: userId)
-                        statusMessage = "Joined league: \(inviteCode)"
-                        inviteCode = ""
-                    } else {
-                        statusMessage = "Invalid league id"
-                    }
+                    await viewModel.joinLeague(inviteCode: inviteCode, userId: userId)
+                    statusMessage = "Joined league by code: \(inviteCode)"
+                    inviteCode = ""
                 }
             }) {
                 Text("Join League")
@@ -68,6 +65,28 @@ struct LeagueManagementView: View {
                     .foregroundColor(.subtleText)
                     .font(.footnote)
                     .padding(.top)
+            }
+
+            VStack(alignment: .leading, spacing: 8) {
+                Text("My Leagues")
+                    .font(.headline)
+                    .foregroundColor(.amber)
+
+                ForEach(viewModel.leagues) { league in
+                    HStack {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(league.name)
+                                .foregroundColor(.white)
+                            Text("Code: \(league.inviteCode ?? "")")
+                                .font(.caption)
+                                .foregroundColor(.subtleText)
+                        }
+                        Spacer()
+                    }
+                    .padding(8)
+                    .background(Color.charcoal)
+                    .cornerRadius(8)
+                }
             }
 
             Spacer()

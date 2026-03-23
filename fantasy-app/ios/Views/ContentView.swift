@@ -34,6 +34,12 @@ struct ContentView: View {
                     Image(systemName: "list.number")
                     Text("Standings")
                 }
+
+            TeamRosterView()
+                .tabItem {
+                    Image(systemName: "person.3")
+                    Text("Roster")
+                }
         }
         .accentColor(.ember)
         .background(Color.carbonBackground.ignoresSafeArea())

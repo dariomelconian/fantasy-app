@@ -24,16 +24,20 @@ create policy "Users can manage own row"
   with check (auth.uid()::uuid = auth_uid);
 
 -- Leagues: owner or member can read (and owner can write)
-create policy "Leagues read for member"
+create policy "Leagues read for member or invite"
   on leagues
   for select
   using (
-    exists (
-      select 1
-      from league_members lm
-      where lm.league_id = leagues.id
-        and lm.user_id = (auth.uid()::uuid)
+    (
+      exists (
+        select 1
+        from league_members lm
+        where lm.league_id = leagues.id
+          and lm.user_id = (auth.uid()::uuid)
+      )
     )
+    or owner_id = auth.uid()::uuid
+    or invite_code is not null
   );
 
 create policy "League insert by owner"
@@ -53,15 +57,23 @@ create policy "League_members select for member"
   for select
   using (user_id = auth.uid()::uuid);
 
-create policy "League_members insert by owner"
+create policy "League_members insert by owner or self-join"
   on league_members
   for insert
   using (
-    exists (
-      select 1 from leagues l where l.id = league_id and l.owner_id = auth.uid()::uuid
+    (
+      exists (
+        select 1 from leagues l where l.id = league_id and l.owner_id = auth.uid()::uuid
+      )
+    )
+    or (
+      exists (
+        select 1 from leagues l where l.id = league_id and l.invite_code is not null
+      )
+      and user_id = auth.uid()::uuid
     )
   )
-  with check (user_id IS NOT NULL);
+  with check (user_id = auth.uid()::uuid);
 
 -- Teams: member of league can select; owner can insert/update/delete
 create policy "Teams select for member"

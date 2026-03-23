@@ -17,6 +17,7 @@ public struct FantasyLeague: Codable, Identifiable {
     public let draftStarted: Bool
     public let draftCompleted: Bool
     public let waiverPeriodHours: Int
+    public let inviteCode: String?
 }
 
 public struct FantasyTeam: Codable, Identifiable {

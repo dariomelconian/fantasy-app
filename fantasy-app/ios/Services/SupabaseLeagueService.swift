@@ -8,9 +8,14 @@ public struct SupabaseLeagueService {
     }
 
     public func fetchUserLeagues(userId: UUID) async throws -> [FantasyLeague] {
-        let path = "rest/v1/leagues?select=*&league_members.user_id=eq.
-\(userId.uuidString)"
+        let path = "rest/v1/leagues?select=*&league_members.user_id=eq.\(userId.uuidString)"
         return try await supabase.fetch(path, type: [FantasyLeague].self)
+    }
+
+    public func fetchLeagueByInviteCode(_ inviteCode: String) async throws -> FantasyLeague? {
+        let path = "rest/v1/leagues?invite_code=eq.\(inviteCode)&select=*"
+        let result = try await supabase.fetch(path, type: [FantasyLeague].self)
+        return result.first
     }
 
     public func createLeague(input: CreateLeagueInput) async throws -> FantasyLeague {
@@ -68,6 +73,53 @@ public struct SupabaseLeagueService {
         return try await supabase.fetch(path, type: [StandingRow].self)
     }
 
+    public func fetchTeams(leagueId: UUID) async throws -> [FantasyTeam] {
+        let path = "rest/v1/teams?league_id=eq.\(leagueId.uuidString)&order=draft_position.asc"
+        return try await supabase.fetch(path, type: [FantasyTeam].self)
+    }
+
+    public func fetchRosterEntries(teamId: UUID) async throws -> [RosterEntry] {
+        let path = "rest/v1/roster_entries?team_id=eq.\(teamId.uuidString)&dropped_at=is.null"
+        return try await supabase.fetch(path, type: [RosterEntry].self)
+    }
+
+    public struct PickPlayerInput: Encodable {
+        public let team_id: UUID
+        public let player_id: UUID
+        public let slot: String
+    }
+
+    public struct DropRosterEntryInput: Encodable {
+        public let dropped_at: Date
+    }
+
+    public struct WaiverDecisionInput: Encodable {
+        public let status: String
+        public let resolved_at: Date
+    }
+
+    public func pickPlayer(teamId: UUID, playerId: UUID, slot: String = "N/A") async throws -> RosterEntry {
+        let path = "rest/v1/roster_entries"
+        let payload = PickPlayerInput(team_id: teamId, player_id: playerId, slot: slot)
+        return try await supabase.post(path, payload: payload, type: RosterEntry.self)
+    }
+
+    public func dropPlayer(rosterEntryId: UUID) async throws -> RosterEntry {
+        let path = "rest/v1/roster_entries?id=eq.\(rosterEntryId.uuidString)"
+        let payload = DropRosterEntryInput(dropped_at: Date())
+        let response: [RosterEntry] = try await supabase.patch(path, payload: payload, type: [RosterEntry].self)
+        guard let first = response.first else { throw NSError(domain: "SupabaseLeagueService", code: 2, userInfo: [NSLocalizedDescriptionKey: "Drop failed"]) }
+        return first
+    }
+
+    public func processWaiverDecision(waiverId: UUID, status: String) async throws -> WaiverTransaction {
+        let path = "rest/v1/waiver_transactions?id=eq.\(waiverId.uuidString)"
+        let payload = WaiverDecisionInput(status: status, resolved_at: Date())
+        let result: [WaiverTransaction] = try await supabase.patch(path, payload: payload, type: [WaiverTransaction].self)
+        guard let first = result.first else { throw NSError(domain: "SupabaseLeagueService", code: 3, userInfo: [NSLocalizedDescriptionKey: "Waiver update failed"]) }
+        return first
+    }
+
     // Convenience method to import NHL roster into players table and returns inserted players
     public func importNHLTeamRoster(teamId: Int, sport: String = "NHL") async throws -> [FantasyPlayer] {
         let api = NHLAPI()
@@ -100,6 +152,7 @@ public struct CreateLeagueInput: Encodable {
     public let draft_rounds: Int
     public let season_year: Int
     public let waiver_period_hours: Int
+    public let invite_code: String?
 }
 
 public struct CreateTeamInput: Encodable {

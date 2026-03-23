@@ -4,6 +4,7 @@ import SwiftUI
 final class FantasyViewModel: ObservableObject {
     @Published var leagues: [FantasyLeague] = []
     @Published var activeDraft: DraftProgress?
+    @Published var activeLeague: FantasyLeague?
 
     private var draftOrder: [String] = []
     private let leagueService: SupabaseLeagueService
@@ -25,7 +26,8 @@ final class FantasyViewModel: ObservableObject {
             seasonYear: Calendar.current.component(.year, from: Date()),
             draftStarted: true,
             draftCompleted: false,
-            waiverPeriodHours: 72
+            waiverPeriodHours: 72,
+            inviteCode: "CARBON" 
         )
 
         if !leagues.contains(where: { $0.id == league.id }) {
@@ -33,6 +35,7 @@ final class FantasyViewModel: ObservableObject {
         }
 
         startDraft(for: league)
+        activeLeague = league
     }
 
     func startDraft(for league: FantasyLeague) {
@@ -64,6 +67,40 @@ final class FantasyViewModel: ObservableObject {
         activeDraft = draft
     }
 
+    func executeDraftPick(playerId: UUID) async {
+        guard let draft = activeDraft,
+              let league = activeLeague else { return }
+
+        // ensure league teams loaded
+        if leagueTeams.isEmpty {
+            await loadTeams(leagueId: league.id)
+        }
+
+        let currentTeamName = draft.nextTeamName
+        guard let currentTeam = leagueTeams.first(where: { $0.name == currentTeamName }) else {
+            print("No team mapped for: \(currentTeamName)")
+            return
+        }
+
+        do {
+            _ = try await leagueService.createDraftPick(leagueId: league.id, teamId: currentTeam.id, round: draft.currentRound, pick: draft.pickIndex + 1, playerId: playerId)
+            await leagueService.pickPlayer(teamId: currentTeam.id, playerId: playerId)
+            await persistDraftStatus(currentRound: draft.currentRound, totalRounds: draft.totalRounds)
+            self.advanceDraft()
+        } catch {
+            print("Draft pick persistence failed: \(error)")
+        }
+    }
+
+    private func persistDraftStatus(currentRound: Int, totalRounds: Int) async {
+        guard let league = activeLeague else { return }
+        do {
+            _ = try await leagueService.updateLeagueStatus(leagueId: league.id, draftStarted: true, draftCompleted: currentRound >= totalRounds)
+        } catch {
+            print("Failed to update league draft status: \(error)")
+        }
+    }
+
     func isDraftPickForTeam(_ team: String) -> Bool {
         guard let draft = activeDraft else { return false }
         return draft.nextTeamName == team
@@ -80,7 +117,7 @@ final class FantasyViewModel: ObservableObject {
         }
     }
 
-    func createLeague(name: String, sport: String = "NHL", ownerId: UUID) async {
+    func createLeague(name: String, sport: String = "NHL", ownerId: UUID, inviteCode: String? = nil) async {
         let input = CreateLeagueInput(
             name: name,
             sport: sport,
@@ -88,7 +125,8 @@ final class FantasyViewModel: ObservableObject {
             roster_size: 15,
             draft_rounds: 15,
             season_year: Calendar.current.component(.year, from: Date()),
-            waiver_period_hours: 72
+            waiver_period_hours: 72,
+            invite_code: inviteCode ?? "INV-\(UUID().uuidString.prefix(8))"
         )
 
         do {
@@ -107,6 +145,20 @@ final class FantasyViewModel: ObservableObject {
             await loadLeagues(for: userId)
         } catch {
             print("Error joining league: \(error)")
+        }
+    }
+
+    func joinLeague(inviteCode: String, userId: UUID) async {
+        do {
+            guard let league = try await leagueService.fetchLeagueByInviteCode(inviteCode) else {
+                print("League not found for code: \(inviteCode)")
+                return
+            }
+
+            _ = try await leagueService.joinLeague(leagueId: league.id, userId: userId)
+            await loadLeagues(for: userId)
+        } catch {
+            print("Error joining league by invite code: \(error)")
         }
     }
 
@@ -135,12 +187,60 @@ final class FantasyViewModel: ObservableObject {
         }
     }
 
+    @Published var selectedTeamRoster: [RosterEntry] = []
+    @Published var leagueTeams: [FantasyTeam] = []
+
     func loadStandings(leagueId: UUID, week: Int) async -> [StandingRow] {
         do {
             return try await leagueService.fetchStandings(leagueId: leagueId, week: week)
         } catch {
             print("Failed loading standings: \(error)")
             return []
+        }
+    }
+
+    func loadTeams(leagueId: UUID) async {
+        do {
+            self.leagueTeams = try await leagueService.fetchTeams(leagueId: leagueId)
+        } catch {
+            print("Failed loading teams: \(error)")
+            self.leagueTeams = []
+        }
+    }
+
+    func loadRoster(teamId: UUID) async {
+        do {
+            self.selectedTeamRoster = try await leagueService.fetchRosterEntries(teamId: teamId)
+        } catch {
+            print("Failed loading roster: \(error)")
+            self.selectedTeamRoster = []
+        }
+    }
+
+    func pickPlayer(teamId: UUID, playerId: UUID, slot: String = "N/A") async {
+        do {
+            _ = try await leagueService.pickPlayer(teamId: teamId, playerId: playerId, slot: slot)
+            await loadRoster(teamId: teamId)
+        } catch {
+            print("Failed picking player: \(error)")
+        }
+    }
+
+    func dropRosterEntry(_ rosterEntry: RosterEntry) async {
+        do {
+            _ = try await leagueService.dropPlayer(rosterEntryId: rosterEntry.id)
+            await loadRoster(teamId: rosterEntry.teamId)
+        } catch {
+            print("Failed dropping player: \(error)")
+        }
+    }
+
+    func processWaiver(_ waiver: WaiverTransaction, approve: Bool) async {
+        do {
+            let status = approve ? "approved" : "rejected"
+            _ = try await leagueService.processWaiverDecision(waiverId: waiver.id, status: status)
+        } catch {
+            print("Failed processing waiver: \(error)")
         }
     }
 
