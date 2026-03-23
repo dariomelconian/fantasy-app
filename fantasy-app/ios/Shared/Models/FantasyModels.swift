@@ -43,6 +43,7 @@ public struct RosterEntry: Codable, Identifiable {
     public let teamId: UUID
     public let playerId: UUID
     public let slot: String
+    public let lineupSlot: String
     public let acquiredAt: Date
     public let droppedAt: Date?
 }
@@ -79,4 +80,14 @@ public struct StandingRow: Codable, Identifiable {
     public let losses: Int
     public let ties: Int
     public let points: Double
+}
+
+public struct LeagueSettings: Codable, Identifiable {
+    public let id: UUID
+    public let leagueId: UUID
+    public let rosterSize: Int
+    public let starterPositions: [String: Int]
+    public let scoringWeights: [String: Double]
+    public let waiverPeriodHours: Int
+    public let draftRounds: Int
 }

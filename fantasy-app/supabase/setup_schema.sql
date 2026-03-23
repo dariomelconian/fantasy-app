@@ -66,6 +66,7 @@ create table if not exists roster_entries (
   team_id uuid references teams(id) on delete cascade,
   player_id uuid references players(id),
   slot text not null,
+  lineup_slot text default 'bench', -- 'starter', 'bench', 'ir'
   acquired_at timestamp with time zone default now(),
   dropped_at timestamp with time zone,
   unique (team_id, player_id, dropped_at) -- each player active only once per team
@@ -123,6 +124,27 @@ create table if not exists standings (
   points numeric default 0,
   created_at timestamp with time zone default now(),
   unique (league_id, team_id, week)
+);
+
+-- LEAGUE SETTINGS: customizable rules per league
+create table if not exists league_settings (
+  id uuid primary key default gen_random_uuid(),
+  league_id uuid references leagues(id) on delete cascade unique,
+  roster_size int not null default 15,
+  starters_count int not null default 9,
+  bench_count int not null default 6,
+  scoring_goals numeric not null default 6.0,
+  scoring_assists numeric not null default 4.0,
+  scoring_pim numeric not null default -0.5,
+  scoring_shots numeric not null default 0.5,
+  scoring_hits numeric not null default 0.5,
+  scoring_blocked numeric not null default 0.5,
+  scoring_powerplay_goals numeric not null default 1.5,
+  scoring_shorthanded_goals numeric not null default 2.0,
+  scoring_game_winning_goals numeric not null default 2.0,
+  scoring_plus_minus numeric not null default 0.5,
+  waiver_period_hours int not null default 72,
+  created_at timestamp with time zone default now()
 );
 
 -- Triggers and support functions (example for roster update after draft pick)

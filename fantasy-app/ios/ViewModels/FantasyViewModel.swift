@@ -5,6 +5,7 @@ final class FantasyViewModel: ObservableObject {
     @Published var leagues: [FantasyLeague] = []
     @Published var activeDraft: DraftProgress?
     @Published var activeLeague: FantasyLeague?
+    @Published var leagueSettings: LeagueSettings?
 
     private var draftOrder: [String] = []
     private let leagueService: SupabaseLeagueService
@@ -114,6 +115,26 @@ final class FantasyViewModel: ObservableObject {
             }
         } catch {
             print("Failed to fetch leagues: \(error)")
+        }
+    }
+
+    func loadLeagueSettings(leagueId: UUID) async {
+        do {
+            let settings = try await leagueService.fetchLeagueSettings(leagueId: leagueId)
+            DispatchQueue.main.async {
+                self.leagueSettings = settings
+            }
+        } catch {
+            print("Failed to fetch league settings: \(error)")
+        }
+    }
+
+    func fetchWeeklyMatchups(leagueId: UUID, week: Int) async -> [WeeklyMatchup] {
+        do {
+            return try await leagueService.fetchWeeklyMatchups(leagueId: leagueId, week: week)
+        } catch {
+            print("Failed to fetch matchups: \(error)")
+            return []
         }
     }
 
@@ -235,6 +256,18 @@ final class FantasyViewModel: ObservableObject {
         }
     }
 
+    func updateLineupSlot(rosterEntryId: UUID, newSlot: String) async {
+        do {
+            _ = try await leagueService.updateLineupSlot(rosterEntryId: rosterEntryId, lineupSlot: newSlot)
+            // Reload roster to reflect changes
+            if let teamId = selectedTeamRoster.first(where: { $0.id == rosterEntryId })?.teamId {
+                await loadRoster(teamId: teamId)
+            }
+        } catch {
+            print("Failed updating lineup slot: \(error)")
+        }
+    }
+
     func processWaiver(_ waiver: WaiverTransaction, approve: Bool) async {
         do {
             let status = approve ? "approved" : "rejected"
@@ -259,10 +292,15 @@ final class FantasyViewModel: ObservableObject {
         FantasyEngine.resolveWaiverQueue(queue)
     }
 
-    func calculateStandings(after matchups: [WeeklyMatchupResultInput]) -> [StandingUpdate] {
-        FantasyEngine.calculateStandingsFromMatchups(matchups)
+    func fetchPlayers(playerIds: [UUID]) async -> [FantasyPlayer] {
+        do {
+            return try await leagueService.fetchPlayers(playerIds: playerIds)
+        } catch {
+            print("Failed to fetch players: \(error)")
+            return []
+        }
     }
-}
+
 
 struct DraftProgress {
     var leagueName: String

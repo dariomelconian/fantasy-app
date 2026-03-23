@@ -151,6 +151,19 @@ await insertWeeklyMatchups(results)
         public let resolved_at: Date
     }
 
+    public struct UpdateLineupSlotInput: Encodable {
+        public let lineup_slot: String
+    }
+
+    public struct WeeklyMatchupResultInput: Encodable {
+        public let league_id: UUID
+        public let week: Int
+        public let teamAId: UUID
+        public let teamBId: UUID
+        public let scoreA: Double
+        public let scoreB: Double
+    }
+
     public func pickPlayer(teamId: UUID, playerId: UUID, slot: String = "N/A") async throws -> RosterEntry {
         let path = "rest/v1/roster_entries"
         let payload = PickPlayerInput(team_id: teamId, player_id: playerId, slot: slot)
@@ -170,6 +183,26 @@ await insertWeeklyMatchups(results)
         let payload = WaiverDecisionInput(status: status, resolved_at: Date())
         let result: [WaiverTransaction] = try await supabase.patch(path, payload: payload, type: [WaiverTransaction].self)
         guard let first = result.first else { throw NSError(domain: "SupabaseLeagueService", code: 3, userInfo: [NSLocalizedDescriptionKey: "Waiver update failed"]) }
+        return first
+    }
+
+    public func fetchLeagueSettings(leagueId: UUID) async throws -> LeagueSettings {
+        let path = "rest/v1/league_settings?league_id=eq.\(leagueId.uuidString)"
+        let result = try await supabase.fetch(path, type: [LeagueSettings].self)
+        guard let settings = result.first else { throw NSError(domain: "SupabaseLeagueService", code: 4, userInfo: [NSLocalizedDescriptionKey: "No settings found for league"]) }
+        return settings
+    }
+
+    public func fetchWeeklyMatchups(leagueId: UUID, week: Int) async throws -> [WeeklyMatchup] {
+        let path = "rest/v1/weekly_matchups?league_id=eq.\(leagueId.uuidString)&week=eq.\(week)"
+        return try await supabase.fetch(path, type: [WeeklyMatchup].self)
+    }
+
+    public func updateLineupSlot(rosterEntryId: UUID, lineupSlot: String) async throws -> RosterEntry {
+        let path = "rest/v1/roster_entries?id=eq.\(rosterEntryId.uuidString)"
+        let payload = UpdateLineupSlotInput(lineup_slot: lineupSlot)
+        let response: [RosterEntry] = try await supabase.patch(path, payload: payload, type: [RosterEntry].self)
+        guard let first = response.first else { throw NSError(domain: "SupabaseLeagueService", code: 5, userInfo: [NSLocalizedDescriptionKey: "Update lineup slot failed"]) }
         return first
     }
 

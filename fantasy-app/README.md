@@ -23,6 +23,7 @@
 ## Supabase flow
 - League operations in `ios/Services/SupabaseLeagueService.swift`
 - Draft + waiver + standings logic in `ios/Services/FantasyEngine.swift`
+- League + roster management UIs in `ios/Views/LeagueManagementView.swift`, `ios/Views/TeamRosterView.swift`, `ios/Views/WaiverWireView.swift`, `ios/Views/StandingsView.swift`
 - Sample state in `ios/ViewModels/FantasyViewModel.swift`
 
 ## Pivot plan

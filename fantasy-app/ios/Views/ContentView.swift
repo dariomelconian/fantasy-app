@@ -29,6 +29,18 @@ struct ContentView: View {
                     Text("Waivers")
                 }
 
+            MatchupsView()
+                .tabItem {
+                    Image(systemName: "trophy")
+                    Text("Matchups")
+                }
+
+            LineupManagerView()
+                .tabItem {
+                    Image(systemName: "line.horizontal.3")
+                    Text("Lineup")
+                }
+
             StandingsView()
                 .tabItem {
                     Image(systemName: "list.number")

@@ -10,6 +10,7 @@ alter table roster_entries enable row level security;
 alter table waiver_transactions enable row level security;
 alter table weekly_matchups enable row level security;
 alter table standings enable row level security;
+alter table league_settings enable row level security;
 
 -- User table: only user can select own row
 create policy "Users can view own profile"
@@ -157,5 +158,28 @@ create policy "Standings select for member"
   using (
     exists (
       select 1 from league_members lm where lm.league_id = standings.league_id and lm.user_id = auth.uid()::uuid
+    )
+  );
+
+create policy "League settings select for member"
+  on league_settings
+  for select
+  using (
+    exists (
+      select 1 from league_members lm where lm.league_id = league_settings.league_id and lm.user_id = auth.uid()::uuid
+    )
+  );
+
+create policy "League settings insert/update/delete by owner"
+  on league_settings
+  for all
+  using (
+    exists (
+      select 1 from leagues l where l.id = league_settings.league_id and l.owner_id = auth.uid()::uuid
+    )
+  )
+  with check (
+    exists (
+      select 1 from leagues l where l.id = league_settings.league_id and l.owner_id = auth.uid()::uuid
     )
   );
