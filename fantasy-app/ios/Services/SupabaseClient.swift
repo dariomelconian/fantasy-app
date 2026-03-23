@@ -47,4 +47,16 @@ public final class SupabaseClient {
         }
         return try JSONDecoder().decode(T.self, from: data)
     }
+
+    public func patch<T: Decodable>(_ path: String, payload: Encodable, type: T.Type) async throws -> T {
+        let body = try JSONEncoder().encode(payload)
+        var request = self.request(path: path, method: "PATCH", body: body)
+        request.addValue("return=representation", forHTTPHeaderField: "Prefer")
+        let (data, response) = try await session.data(for: request)
+        guard let http = response as? HTTPURLResponse, 200..<300 ~= http.statusCode else {
+            throw NSError(domain: "Supabase", code: 3, userInfo: ["data": String(decoding: data, as: UTF8.self)])
+        }
+        return try JSONDecoder().decode(T.self, from: data)
+    }
 }
+

@@ -11,19 +11,25 @@ struct ContentView: View {
                     Text("Leagues")
                 }
 
+            LeagueManagementView()
+                .tabItem {
+                    Image(systemName: "plus.circle")
+                    Text("Manage")
+                }
+
             DraftView()
                 .tabItem {
                     Image(systemName: "hand.raised.fill")
                     Text("Draft")
                 }
 
-            Text("Waivers")
+            WaiverWireView()
                 .tabItem {
                     Image(systemName: "arrow.up.arrow.down")
                     Text("Waivers")
                 }
 
-            Text("Standings")
+            StandingsView()
                 .tabItem {
                     Image(systemName: "list.number")
                     Text("Standings")

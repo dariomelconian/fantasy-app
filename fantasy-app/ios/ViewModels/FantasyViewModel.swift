@@ -80,6 +80,70 @@ final class FantasyViewModel: ObservableObject {
         }
     }
 
+    func createLeague(name: String, sport: String = "NHL", ownerId: UUID) async {
+        let input = CreateLeagueInput(
+            name: name,
+            sport: sport,
+            owner_id: ownerId,
+            roster_size: 15,
+            draft_rounds: 15,
+            season_year: Calendar.current.component(.year, from: Date()),
+            waiver_period_hours: 72
+        )
+
+        do {
+            let league = try await leagueService.createLeague(input: input)
+            DispatchQueue.main.async {
+                self.leagues.append(league)
+            }
+        } catch {
+            print("Error creating league: \(error)")
+        }
+    }
+
+    func joinLeague(leagueId: UUID, userId: UUID) async {
+        do {
+            _ = try await leagueService.joinLeague(leagueId: leagueId, userId: userId)
+            await loadLeagues(for: userId)
+        } catch {
+            print("Error joining league: \(error)")
+        }
+    }
+
+    func updateLeagueDraftStatus(leagueId: UUID, started: Bool? = nil, completed: Bool? = nil) async {
+        do {
+            _ = try await leagueService.updateLeagueStatus(leagueId: leagueId, draftStarted: started, draftCompleted: completed)
+        } catch {
+            print("Error updating league status: \(error)")
+        }
+    }
+
+    func fetchWaiverQueue(leagueId: UUID) async -> [WaiverTransaction] {
+        do {
+            return try await leagueService.fetchWaiverTransactions(leagueId: leagueId)
+        } catch {
+            print("Failed fetching waivers: \(error)")
+            return []
+        }
+    }
+
+    func submitWaiver(_ input: WaiverRequestInput) async {
+        do {
+            _ = try await leagueService.submitWaiverRequest(input)
+        } catch {
+            print("Failed submitting waiver: \(error)")
+        }
+    }
+
+    func loadStandings(leagueId: UUID, week: Int) async -> [StandingRow] {
+        do {
+            return try await leagueService.fetchStandings(leagueId: leagueId, week: week)
+        } catch {
+            print("Failed loading standings: \(error)")
+            return []
+        }
+    }
+
     func resolveWaivers(_ queue: [WaiverRequestInput]) -> [WaiverRequestInput] {
         FantasyEngine.resolveWaiverQueue(queue)
     }
